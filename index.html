@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calculadora JS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    /* ============================================
+       VARIÁVEIS & RESET
+       ============================================ */
+    :root {
+      --bg:          #111118;
+      --calc-bg:     #1c1c26;
+      --display-bg:  #0d0d14;
+      --btn-num:     #252535;
+      --btn-op:      #2e2e42;
+      --btn-eq:      #6c63ff;
+      --btn-clear:   #3a2a2a;
+      --btn-clear-c: #f87171;
+      --text:        #f0f0f8;
+      --muted:       #6b6b85;
+      --accent:      #6c63ff;
+      --radius-calc: 24px;
+      --radius-btn:  14px;
+      --font-display:'Space Mono', monospace;
+      --font-btn:    'Inter', sans-serif;
+      --shadow:      0 24px 60px rgba(0,0,0,.6);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      /* padrão de pontos no fundo */
+      background-image: radial-gradient(circle, #2a2a3a 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    /* ============================================
+       CALCULADORA
+       ============================================ */
+    .calc {
+      background: var(--calc-bg);
+      border-radius: var(--radius-calc);
+      padding: 24px;
+      width: 340px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+
+    /* ============================================
+       DISPLAY
+       ============================================ */
+    .display {
+      background: var(--display-bg);
+      border-radius: 16px;
+      padding: 20px 22px 16px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255,255,255,.05);
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-end;
+      overflow: hidden;
+    }
+
+    /* Linha da expressão anterior (ex: "8 ×") */
+    .display__expression {
+      font-family: var(--font-display);
+      font-size: .8rem;
+      color: var(--muted);
+      min-height: 18px;
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+      transition: opacity .2s;
+    }
+
+    /* Número principal */
+    .display__value {
+      font-family: var(--font-display);
+      font-size: 2.6rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -1px;
+      word-break: break-all;
+      transition: font-size .1s;
+    }
+    /* Diminui a fonte quando o número é muito grande */
+    .display__value.small  { font-size: 1.8rem; }
+    .display__value.xsmall { font-size: 1.3rem; }
+
+    /* ============================================
+       GRADE DE BOTÕES
+       ============================================ */
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: var(--radius-btn);
+      padding: 18px 10px;
+      font-family: var(--font-btn);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform .1s, opacity .15s, background .15s;
+      color: var(--text);
+      position: relative;
+      overflow: hidden;
+    }
+    button:active { transform: scale(.93); opacity: .8; }
+
+    /* Ripple ao clicar */
+    button::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,.06);
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    button:hover::after { opacity: 1; }
+
+    /* Tipos de botão */
+    .btn-num   { background: var(--btn-num); }
+    .btn-op    { background: var(--btn-op); color: var(--accent); font-size: 1.15rem; }
+    .btn-eq    { background: var(--btn-eq); color: #fff; font-size: 1.3rem; box-shadow: 0 4px 20px rgba(108,99,255,.35); }
+    .btn-clear { background: var(--btn-clear); color: var(--btn-clear-c); }
+    .btn-back  { background: var(--btn-op); color: #f59e0b; }
+
+    /* Botão zero ocupa 2 colunas */
+    .btn-zero { grid-column: span 2; }
+
+    /* Botão igual ocupa 2 linhas */
+    .btn-eq   { grid-row: span 2; }
+  </style>
+</head>
+<body>
+
+<div class="calc">
+
+  <!-- DISPLAY -->
+  <div class="display">
+    <div class="display__expression" id="expression"></div>
+    <div class="display__value" id="displayValue">0</div>
+  </div>
+
+  <!-- BOTÕES
+       Cada botão tem data-action para o JS identificar o que fazer
+  -->
+  <div class="buttons">
+    <!-- Linha 1 -->
+    <button class="btn-clear" data-action="clear">C</button>
+    <button class="btn-back"  data-action="backspace">⌫</button>
+    <button class="btn-op"    data-action="percent">%</button>
+    <button class="btn-op"    data-action="operator" data-value="÷">÷</button>
+
+    <!-- Linha 2 -->
+    <button class="btn-num" data-action="digit" data-value="7">7</button>
+    <button class="btn-num" data-action="digit" data-value="8">8</button>
+    <button class="btn-num" data-action="digit" data-value="9">9</button>
+    <button class="btn-op"  data-action="operator" data-value="×">×</button>
+
+    <!-- Linha 3 -->
+    <button class="btn-num" data-action="digit" data-value="4">4</button>
+    <button class="btn-num" data-action="digit" data-value="5">5</button>
+    <button class="btn-num" data-action="digit" data-value="6">6</button>
+    <button class="btn-op"  data-action="operator" data-value="−">−</button>
+
+    <!-- Linha 4 + igual -->
+    <button class="btn-num" data-action="digit" data-value="1">1</button>
+    <button class="btn-num" data-action="digit" data-value="2">2</button>
+    <button class="btn-num" data-action="digit" data-value="3">3</button>
+    <button class="btn-eq"  data-action="equals">=</button>
+
+    <!-- Linha 5 -->
+    <button class="btn-num btn-zero" data-action="digit" data-value="0">0</button>
+    <button class="btn-num" data-action="decimal">,</button>
+    <button class="btn-op"  data-action="operator" data-value="+">+</button>
+  </div>
+
+</div>
+
+<script>
+  // ================================================
+  // ESTADO DA CALCULADORA
+  // Toda a lógica vive nessas 4 variáveis
+  // ================================================
+  let currentValue  = '0';   // o que está na tela agora
+  let previousValue = '';    // o valor antes do operador
+  let operator      = null;  // operador escolhido (+, −, ×, ÷)
+  let waitingNext   = false; // true = próximo dígito começa novo número
+
+  // ================================================
+  // ATUALIZAR DISPLAY
+  // ================================================
+  const displayEl    = document.getElementById('displayValue');
+  const expressionEl = document.getElementById('expression');
+
+  function updateDisplay() {
+    displayEl.textContent = currentValue;
+
+    // Ajusta tamanho da fonte pelo comprimento do número
+    const len = currentValue.length;
+    displayEl.className = 'display__value';
+    if (len > 12) displayEl.classList.add('xsmall');
+    else if (len > 8) displayEl.classList.add('small');
+
+    // Expressão acima (ex: "12 ×")
+    expressionEl.textContent = previousValue && operator
+      ? `${previousValue} ${operator}`
+      : '';
+  }
+
+  // ================================================
+  // AÇÕES
+  // ================================================
+
+  // Digitar número
+  function inputDigit(digit) {
+    if (waitingNext) {
+      // Começa um número novo após operador ou resultado
+      currentValue = digit;
+      waitingNext  = false;
+    } else {
+      // Impede zeros à esquerda (ex: "007")
+      currentValue = currentValue === '0' ? digit : currentValue + digit;
+    }
+    // Limite de 12 dígitos
+    if (currentValue.replace(/[^0-9]/g, '').length > 12) return;
+  }
+
+  // Ponto decimal (vírgula no display, ponto internamente)
+  function inputDecimal() {
+    if (waitingNext) {
+      currentValue = '0.';
+      waitingNext  = false;
+      return;
+    }
+    // Só adiciona ponto se ainda não tiver
+    if (!currentValue.includes('.')) {
+      currentValue += '.';
+    }
+  }
+
+  // Selecionar operador
+  function inputOperator(op) {
+    if (operator && !waitingNext) {
+      // Se já havia operador e o usuário digitou número, calcula primeiro
+      calculate();
+    }
+    previousValue = currentValue;
+    operator      = op;
+    waitingNext   = true;
+  }
+
+  // Calcular resultado
+  function calculate() {
+    if (!operator || !previousValue) return;
+
+    const a = parseFloat(previousValue.replace(',', '.'));
+    const b = parseFloat(currentValue.replace(',', '.'));
+    let result;
+
+    switch (operator) {
+      case '+': result = a + b; break;
+      case '−': result = a - b; break;
+      case '×': result = a * b; break;
+      case '÷':
+        if (b === 0) {
+          currentValue  = 'Erro';
+          previousValue = '';
+          operator      = null;
+          waitingNext   = true;
+          updateDisplay();
+          return;
+        }
+        result = a / b;
+        break;
+    }
+
+    // Evita casas decimais absurdas (ex: 0.1 + 0.2)
+    result = parseFloat(result.toFixed(10));
+
+    // Exibe no display no formato brasileiro
+    currentValue  = String(result).replace('.', ',');
+    previousValue = '';
+    operator      = null;
+    waitingNext   = true;
+  }
+
+  // Porcentagem
+  function inputPercent() {
+    const val = parseFloat(currentValue.replace(',', '.'));
+    currentValue = String(val / 100).replace('.', ',');
+  }
+
+  // Apagar último caractere
+  function backspace() {
+    if (waitingNext) return;
+    currentValue = currentValue.length > 1
+      ? currentValue.slice(0, -1)
+      : '0';
+  }
+
+  // Limpar tudo
+  function clearAll() {
+    currentValue  = '0';
+    previousValue = '';
+    operator      = null;
+    waitingNext   = false;
+  }
+
+  // ================================================
+  // DELEGAÇÃO DE EVENTOS — um único listener para todos os botões
+  // ================================================
+  document.querySelector('.buttons').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+
+    const action = btn.dataset.action;
+    const value  = btn.dataset.value;
+
+    switch (action) {
+      case 'digit':    inputDigit(value);    break;
+      case 'decimal':  inputDecimal();       break;
+      case 'operator': inputOperator(value); break;
+      case 'equals':   calculate();          break;
+      case 'percent':  inputPercent();       break;
+      case 'backspace': backspace();         break;
+      case 'clear':    clearAll();           break;
+    }
+
+    updateDisplay();
+  });
+
+  // ================================================
+  // SUPORTE AO TECLADO
+  // ================================================
+  document.addEventListener('keydown', (e) => {
+    if (e.key >= '0' && e.key <= '9') { inputDigit(e.key); }
+    else if (e.key === '.')  { inputDecimal(); }
+    else if (e.key === ',')  { inputDecimal(); }
+    else if (e.key === '+')  { inputOperator('+'); }
+    else if (e.key === '-')  { inputOperator('−'); }
+    else if (e.key === '*')  { inputOperator('×'); }
+    else if (e.key === '/')  { e.preventDefault(); inputOperator('÷'); }
+    else if (e.key === 'Enter' || e.key === '=') { calculate(); }
+    else if (e.key === 'Backspace') { backspace(); }
+    else if (e.key === 'Escape')    { clearAll(); }
+    else if (e.key === '%')         { inputPercent(); }
+    else return;
+
+    updateDisplay();
+  });
+
+  // ================================================
+  // INIT
+  // ================================================
+  updateDisplay();
+</script>
+</body>
+</html>
