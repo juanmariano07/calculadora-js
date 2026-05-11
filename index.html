@@ -160,33 +160,33 @@
   -->
   <div class="buttons">
     <!-- Linha 1 -->
-    <button class="btn-clear" data-action="clear">C</button>
-    <button class="btn-back"  data-action="backspace">⌫</button>
-    <button class="btn-op"    data-action="percent">%</button>
-    <button class="btn-op"    data-action="operator" data-value="÷">÷</button>
+    <button class="btn-clear" data-action="clear" aria-label="Limpar calculadora">C</button>
+    <button class="btn-back"  data-action="backspace" aria-label="Apagar último dígito">⌫</button>
+    <button class="btn-op"    data-action="percent" aria-label="Converter em porcentagem">%</button>
+    <button class="btn-op"    data-action="operator" data-value="÷" aria-label="Dividir">÷</button>
 
     <!-- Linha 2 -->
     <button class="btn-num" data-action="digit" data-value="7">7</button>
     <button class="btn-num" data-action="digit" data-value="8">8</button>
     <button class="btn-num" data-action="digit" data-value="9">9</button>
-    <button class="btn-op"  data-action="operator" data-value="×">×</button>
+    <button class="btn-op"  data-action="operator" data-value="×" aria-label="Multiplicar">×</button>
 
     <!-- Linha 3 -->
     <button class="btn-num" data-action="digit" data-value="4">4</button>
     <button class="btn-num" data-action="digit" data-value="5">5</button>
     <button class="btn-num" data-action="digit" data-value="6">6</button>
-    <button class="btn-op"  data-action="operator" data-value="−">−</button>
+    <button class="btn-op"  data-action="operator" data-value="−" aria-label="Subtrair">−</button>
 
     <!-- Linha 4 + igual -->
     <button class="btn-num" data-action="digit" data-value="1">1</button>
     <button class="btn-num" data-action="digit" data-value="2">2</button>
     <button class="btn-num" data-action="digit" data-value="3">3</button>
-    <button class="btn-eq"  data-action="equals">=</button>
+    <button class="btn-eq"  data-action="equals" aria-label="Calcular resultado">=</button>
 
     <!-- Linha 5 -->
     <button class="btn-num btn-zero" data-action="digit" data-value="0">0</button>
-    <button class="btn-num" data-action="decimal">,</button>
-    <button class="btn-op"  data-action="operator" data-value="+">+</button>
+    <button class="btn-num" data-action="decimal" aria-label="Inserir vírgula decimal">,</button>
+    <button class="btn-op"  data-action="operator" data-value="+" aria-label="Somar">+</button>
   </div>
 
 </div>
@@ -208,17 +208,21 @@
   const expressionEl = document.getElementById('expression');
 
   function updateDisplay() {
-    displayEl.textContent = currentValue;
+    const displayValue = currentValue === 'Erro'
+      ? currentValue
+      : currentValue.replace('.', ',');
+
+    displayEl.textContent = displayValue;
 
     // Ajusta tamanho da fonte pelo comprimento do número
-    const len = currentValue.length;
+    const len = displayValue.length;
     displayEl.className = 'display__value';
     if (len > 12) displayEl.classList.add('xsmall');
     else if (len > 8) displayEl.classList.add('small');
 
     // Expressão acima (ex: "12 ×")
     expressionEl.textContent = previousValue && operator
-      ? `${previousValue} ${operator}`
+      ? `${previousValue.replace('.', ',')} ${operator}`
       : '';
   }
 
@@ -228,6 +232,16 @@
 
   // Digitar número
   function inputDigit(digit) {
+    if (currentValue === 'Erro') {
+      currentValue = digit;
+      waitingNext = false;
+      return;
+    }
+
+    if (!waitingNext && currentValue.replace(/[^0-9]/g, '').length >= 12) {
+      return;
+    }
+
     if (waitingNext) {
       // Começa um número novo após operador ou resultado
       currentValue = digit;
@@ -236,19 +250,23 @@
       // Impede zeros à esquerda (ex: "007")
       currentValue = currentValue === '0' ? digit : currentValue + digit;
     }
-    // Limite de 12 dígitos
-    if (currentValue.replace(/[^0-9]/g, '').length > 12) return;
   }
 
   // Ponto decimal (vírgula no display, ponto internamente)
   function inputDecimal() {
+    if (currentValue === 'Erro') {
+      currentValue = '0.';
+      waitingNext = false;
+      return;
+    }
+
     if (waitingNext) {
       currentValue = '0.';
       waitingNext  = false;
       return;
     }
-    // Só adiciona ponto se ainda não tiver
-    if (!currentValue.includes('.')) {
+    // Só adiciona separador decimal se ainda não tiver ponto ou vírgula
+    if (!currentValue.includes('.') && !currentValue.includes(',')) {
       currentValue += '.';
     }
   }
@@ -348,6 +366,11 @@
   // SUPORTE AO TECLADO
   // ================================================
   document.addEventListener('keydown', (e) => {
+    const handledKeys = ['Enter', '=', 'Backspace', 'Escape', '%', '+', '-', '*', '/', '.', ','];
+    if ((e.key >= '0' && e.key <= '9') || handledKeys.includes(e.key)) {
+      e.preventDefault();
+    }
+
     if (e.key >= '0' && e.key <= '9') { inputDigit(e.key); }
     else if (e.key === '.')  { inputDecimal(); }
     else if (e.key === ',')  { inputDecimal(); }
